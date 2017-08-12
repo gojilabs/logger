@@ -3,7 +3,6 @@ package logger
 import (
   "log"
   "strings"
-  "time"
 )
 
 const debug = 0
@@ -49,7 +48,7 @@ func (l *Logger) shouldWrite(level int) bool {
 
 func (l *Logger) writeLine(level int, msg string) {
   if l.shouldWrite(level) {
-    log.Println(string(l.msgLevel) + " " + time.Now().Format(time.StampMicro) + " " + msg)
+    log.Println(string(l.msgLevel) + " " + msg)
   }
 }
 
