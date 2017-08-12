@@ -46,24 +46,24 @@ func (l *Logger) shouldWrite(level int) bool {
   return level >= l.level
 }
 
-func (l *Logger) writeLine(level int, msg string) {
+func (l *Logger) writeLine(level int, levelRune rune, msg string) {
   if l.shouldWrite(level) {
-    log.Println(string(l.msgLevel) + " " + msg)
+    log.Println(string(levelRune) + " " + msg)
   }
 }
 
 func (l *Logger) Debug(msg string) {
-  l.writeLine(debug, msg)
+  l.writeLine(debug, DEBUG, msg)
 }
 
 func (l *Logger) Info(msg string) {
-  l.writeLine(info, msg)
+  l.writeLine(info, INFO, msg)
 }
 
 func (l *Logger) Warn(msg string) {
-  l.writeLine(warn, msg)
+  l.writeLine(warn, WARN, msg)
 }
 
 func (l *Logger) Error(msg string) {
-  l.writeLine(err, msg)
+  l.writeLine(err, ERROR, msg)
 }
