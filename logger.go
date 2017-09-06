@@ -80,3 +80,19 @@ func (l *Logger) Warn(msg string) {
 func (l *Logger) Error(msg string) {
 	l.writeLine(err, ERROR, msg)
 }
+
+func (l *Logger) DebugErr(err error) {
+	l.Debug(err.Error())
+}
+
+func (l *Logger) InfoErr(err error) {
+	l.Info(err.Error())
+}
+
+func (l *Logger) WarnErr(err error) {
+	l.Warn(err.Error())
+}
+
+func (l *Logger) ErrorErr(err error) {
+	l.Error(err.Error())
+}
