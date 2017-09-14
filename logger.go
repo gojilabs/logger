@@ -20,9 +20,11 @@ const WARN = 'W'
 const ERROR = 'E'
 
 type Logger struct {
-	level    int
-	msgLevel rune
-	mutex    sync.Mutex
+	level            int
+	msgLevel         rune
+	mutex            sync.Mutex
+	prefix           string
+	timestampEnabled bool
 }
 
 func New(logLevel string) *Logger {
@@ -44,7 +46,15 @@ func New(logLevel string) *Logger {
 		}
 	}
 
-	return &Logger{level: level, msgLevel: msgLevel}
+	return &Logger{level: level, msgLevel: msgLevel, timestampEnabled: environment.Development() || environment.Test()}
+}
+
+func (l *Logger) SetTimestampEnabled(enabled bool) {
+	l.timestampEnabled = enabled
+}
+
+func (l *Logger) AddPrefix(key string, value string) {
+	l.prefix = l.prefix + key + "=" + value + " "
 }
 
 func (l *Logger) shouldWrite(level int) bool {
@@ -54,14 +64,14 @@ func (l *Logger) shouldWrite(level int) bool {
 func (l *Logger) writeLine(level int, levelRune rune, msg string) {
 	if l.shouldWrite(level) {
 		timestamp := ""
-		if environment.Development() || environment.Test() {
+		if l.timestampEnabled {
 			timestamp = time.Now().Format(time.StampMicro) + " "
 		}
 
 		l.mutex.Lock()
 		defer l.mutex.Unlock()
 
-		os.Stdout.WriteString(timestamp + string(levelRune) + " " + msg + "\n")
+		os.Stdout.WriteString(timestamp + string(levelRune) + " " + l.prefix + msg + "\n")
 	}
 }
 
