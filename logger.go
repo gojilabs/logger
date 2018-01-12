@@ -46,7 +46,7 @@ func New(logLevel string) *Logger {
 		}
 	}
 
-	return &Logger{level: level, msgLevel: msgLevel, timestampEnabled: environment.Development() || environment.Test()}
+	return &Logger{level: level, msgLevel: msgLevel, timestampEnabled: environment.IsDevelopment() || environment.IsTest()}
 }
 
 func (l *Logger) SetTimestampEnabled(enabled bool) {
