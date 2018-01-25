@@ -2,7 +2,6 @@ package logger
 
 import (
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -14,36 +13,35 @@ const info = 1
 const warn = 2
 const err = 3
 
-const DEBUG = 'D'
-const INFO = 'I'
-const WARN = 'W'
-const ERROR = 'E'
+type Level rune
+
+const DEBUG Level = 'D'
+const INFO Level = 'I'
+const WARN Level = 'W'
+const ERROR Level = 'E'
 
 type Logger struct {
 	level            int
-	msgLevel         rune
+	msgLevel         Level
 	mutex            sync.Mutex
 	prefix           string
 	timestampEnabled bool
 }
 
-func New(logLevel string) *Logger {
+func New(logLevel Level) *Logger {
 
 	level := debug
 	msgLevel := DEBUG
 
-	if logLevel != "" {
-		levelStr := strings.ToLower(logLevel)
-		if levelStr == "error" {
-			level = err
-			msgLevel = ERROR
-		} else if levelStr == "warn" {
-			level = warn
-			msgLevel = WARN
-		} else if levelStr == "info" {
-			level = info
-			msgLevel = INFO
-		}
+	if logLevel == ERROR {
+		level = err
+		msgLevel = ERROR
+	} else if logLevel == WARN {
+		level = warn
+		msgLevel = WARN
+	} else if logLevel == INFO {
+		level = info
+		msgLevel = INFO
 	}
 
 	return &Logger{level: level, msgLevel: msgLevel, timestampEnabled: environment.IsDevelopment() || environment.IsTest()}
@@ -61,7 +59,7 @@ func (l *Logger) shouldWrite(level int) bool {
 	return level >= l.level
 }
 
-func (l *Logger) writeLine(level int, levelRune rune, msg string) {
+func (l *Logger) writeLine(level int, levelRune Level, msg string) {
 	if l.shouldWrite(level) {
 		timestamp := ""
 		if l.timestampEnabled {
