@@ -1,6 +1,8 @@
 package logger
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -8,30 +10,37 @@ import (
 	"github.com/gojilabs/environment"
 )
 
-const debug = 0
-const info = 1
-const warn = 2
-const err = 3
+type levelByte byte
+
+const debug = levelByte(0x00)
+const info = levelByte(0x01)
+const warn = levelByte(0x02)
+const err = levelByte(0x03)
 
 type Level rune
 
-const DEBUG Level = 'D'
-const INFO Level = 'I'
-const WARN Level = 'W'
-const ERROR Level = 'E'
+const DEBUG = Level('D')
+const INFO = Level('I')
+const WARN = Level('W')
+const ERROR = Level('E')
 
-type Logger struct {
-	level            int
-	msgLevel         Level
-	mutex            sync.Mutex
-	prefix           string
-	timestampEnabled bool
-}
+const space = ' '
+const newline = '\n'
+const equals = '='
 
-func New(logLevel Level) *Logger {
+var prefix bytes.Buffer
+var buf bytes.Buffer
 
-	level := debug
-	msgLevel := DEBUG
+var level = debug
+var msgLevel = DEBUG
+var timestampEnabled = false
+
+var mutex sync.Mutex
+var writer io.Writer
+
+func Initialize(logLevel Level, writers ...io.Writer) {
+	level = debug
+	msgLevel = DEBUG
 
 	if logLevel == ERROR {
 		level = err
@@ -44,63 +53,79 @@ func New(logLevel Level) *Logger {
 		msgLevel = INFO
 	}
 
-	return &Logger{level: level, msgLevel: msgLevel, timestampEnabled: environment.IsDevelopment() || environment.IsTest()}
+	if len(writers) > 0 {
+		writer = io.MultiWriter(writers...)
+	} else {
+		writer = os.Stdout
+	}
+
+	timestampEnabled = environment.IsDevelopment() || environment.IsTest()
 }
 
-func (l *Logger) SetTimestampEnabled(enabled bool) {
-	l.timestampEnabled = enabled
+func SetTimestampEnabled(enabled bool) {
+	timestampEnabled = enabled
 }
 
-func (l *Logger) AddPrefix(key string, value string) {
-	l.prefix = l.prefix + key + "=" + value + " "
+func AddPrefix(key string, value string) {
+	prefix.WriteString(key)
+	prefix.WriteRune(equals)
+	prefix.WriteString(value)
+	prefix.WriteRune(space)
 }
 
-func (l *Logger) shouldWrite(level int) bool {
-	return level >= l.level
+func shouldWrite(myLevel levelByte) bool {
+	return myLevel >= level
 }
 
-func (l *Logger) writeLine(level int, levelRune Level, msg string) {
-	if l.shouldWrite(level) {
-		timestamp := ""
-		if l.timestampEnabled {
-			timestamp = time.Now().Format(time.StampMicro) + " "
+func writeLine(level levelByte, levelRune Level, msg string) {
+	if shouldWrite(level) {
+		defer buf.Reset()
+
+		if timestampEnabled {
+			buf.WriteString(time.Now().Format(time.StampMicro))
+			buf.WriteRune(space)
 		}
 
-		l.mutex.Lock()
-		defer l.mutex.Unlock()
+		mutex.Lock()
+		defer mutex.Unlock()
 
-		os.Stdout.WriteString(timestamp + string(levelRune) + " " + l.prefix + msg + "\n")
+		buf.WriteRune(rune(levelRune))
+		buf.WriteRune(space)
+		buf.Write(prefix.Bytes())
+		buf.WriteString(msg)
+		buf.WriteRune(newline)
+		buf.WriteTo(writer)
 	}
 }
 
-func (l *Logger) Debug(msg string) {
-	l.writeLine(debug, DEBUG, msg)
+func Debug(msg string) {
+	writeLine(debug, DEBUG, msg)
 }
 
-func (l *Logger) Info(msg string) {
-	l.writeLine(info, INFO, msg)
+func Info(msg string) {
+	writeLine(info, INFO, msg)
 }
 
-func (l *Logger) Warn(msg string) {
-	l.writeLine(warn, WARN, msg)
+func Warn(msg string) {
+	writeLine(warn, WARN, msg)
 }
 
-func (l *Logger) Error(msg string) {
-	l.writeLine(err, ERROR, msg)
+func Error(msg string) {
+	writeLine(err, ERROR, msg)
 }
 
-func (l *Logger) DebugErr(err error) {
-	l.Debug(err.Error())
+func DebugErr(err error) {
+	Debug(err.Error())
 }
 
-func (l *Logger) InfoErr(err error) {
-	l.Info(err.Error())
+func InfoErr(err error) {
+	Info(err.Error())
 }
 
-func (l *Logger) WarnErr(err error) {
-	l.Warn(err.Error())
+func WarnErr(err error) {
+	Warn(err.Error())
 }
 
-func (l *Logger) ErrorErr(err error) {
-	l.Error(err.Error())
+func ErrorErr(err error) {
+	Error(err.Error())
 }
