@@ -30,6 +30,7 @@ const equals = '='
 
 var prefix bytes.Buffer
 var buf bytes.Buffer
+var prefixMap map[string]string
 
 var level = debug
 var msgLevel = DEBUG
@@ -59,6 +60,8 @@ func Initialize(logLevel Level, writers ...io.Writer) {
 		writer = os.Stdout
 	}
 
+	prefixMap = make(map[string]string)
+
 	timestampEnabled = environment.IsDevelopment() || environment.IsTest()
 }
 
@@ -67,10 +70,18 @@ func SetTimestampEnabled(enabled bool) {
 }
 
 func AddPrefix(key string, value string) {
-	prefix.WriteString(key)
-	prefix.WriteRune(equals)
-	prefix.WriteString(value)
-	prefix.WriteRune(space)
+	mutex.Lock()
+	defer mutex.Unlock()
+	prefixMap[key] = value
+
+	prefix.Reset()
+
+	for k, v := range prefixMap {
+		prefix.WriteString(k)
+		prefix.WriteRune(equals)
+		prefix.WriteString(v)
+		prefix.WriteRune(space)
+	}
 }
 
 func shouldWrite(myLevel levelByte) bool {
