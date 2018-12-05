@@ -1,59 +1,55 @@
 package logger
 
 import (
-	"bytes"
+	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gojilabs/environment"
 )
 
-type levelByte byte
+type Level uint8
 
-const debug = levelByte(0x00)
-const info = levelByte(0x01)
-const warn = levelByte(0x02)
-const err = levelByte(0x03)
+const debug = Level(7)
+const info = Level(6)
+const notice = Level(5)
+const warn = Level(4)
+const err = Level(3)
+const critical = Level(2)
+const alert = Level(1)
+const emergency = Level(0)
 
-type Level rune
+type Severity rune
 
-const DEBUG = Level('D')
-const INFO = Level('I')
-const WARN = Level('W')
-const ERROR = Level('E')
+const DEBUG = Severity('7')
+const INFO = Severity('6')
+const NOTICE = Severity('5')
+const WARN = Severity('4')
+const ERROR = Severity('3')
+const CRITICAL = Severity('2')
+const ALERT = Severity('1')
+const EMERGENCY = Severity('0')
 
 const space = ' '
 const newline = '\n'
 const equals = '='
+const openBracket = '<'
+const closeBracket = '>'
 
-var prefix bytes.Buffer
-var buf bytes.Buffer
+var prefix strings.Builder
+var buf strings.Builder
 var prefixMap map[string]string
 
-var level = debug
-var msgLevel = DEBUG
 var timestampEnabled = false
 
 var mutex sync.Mutex
 var writer io.Writer
 
-func Initialize(logLevel Level, writers ...io.Writer) {
-	level = debug
-	msgLevel = DEBUG
-
-	if logLevel == ERROR {
-		level = err
-		msgLevel = ERROR
-	} else if logLevel == WARN {
-		level = warn
-		msgLevel = WARN
-	} else if logLevel == INFO {
-		level = info
-		msgLevel = INFO
-	}
-
+func Initialize(writers ...io.Writer) {
 	if len(writers) > 0 {
 		writer = io.MultiWriter(writers...)
 	} else {
@@ -76,67 +72,49 @@ func AddPrefix(key string, value string) {
 
 	prefix.Reset()
 
-	for k, v := range prefixMap {
+	var keys []string
+	for k := range prefixMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
 		prefix.WriteString(k)
 		prefix.WriteRune(equals)
-		prefix.WriteString(v)
+		prefix.WriteString(prefixMap[k])
 		prefix.WriteRune(space)
 	}
 }
 
-func shouldWrite(myLevel levelByte) bool {
-	return myLevel >= level
-}
+func writeLine(l Level, severity Severity, fields ...interface{}) {
+	defer buf.Reset()
 
-func writeLine(level levelByte, levelRune Level, msg string) {
-	if shouldWrite(level) {
-		defer buf.Reset()
-
-		if timestampEnabled {
-			buf.WriteString(time.Now().Format(time.StampMicro))
-			buf.WriteRune(space)
-		}
-
-		mutex.Lock()
-		defer mutex.Unlock()
-
-		buf.WriteRune(rune(levelRune))
+	if timestampEnabled {
+		buf.WriteString(time.Now().Format(time.StampMicro))
 		buf.WriteRune(space)
-		buf.Write(prefix.Bytes())
-		buf.WriteString(msg)
-		buf.WriteRune(newline)
-		buf.WriteTo(writer)
 	}
-}
 
-func Debug(msg string) {
-	writeLine(debug, DEBUG, msg)
-}
+	mutex.Lock()
+	defer mutex.Unlock()
 
-func Info(msg string) {
-	writeLine(info, INFO, msg)
-}
+	buf.WriteRune(openBracket)
+	buf.WriteRune(rune(severity))
+	buf.WriteRune(closeBracket)
+	buf.WriteString(prefix.String())
 
-func Warn(msg string) {
-	writeLine(warn, WARN, msg)
-}
+	var key string
+	var shouldInclude bool
 
-func Error(msg string) {
-	writeLine(err, ERROR, msg)
-}
+	for i, field := range fields {
+		if i%2 == 0 {
+			key, shouldInclude = field.(string)
+		} else if shouldInclude {
+			buf.WriteString(key)
+			buf.WriteRune(equals)
+			buf.WriteString(fmt.Sprint(field))
+		}
+	}
 
-func DebugErr(err error) {
-	Debug(err.Error())
-}
-
-func InfoErr(err error) {
-	Info(err.Error())
-}
-
-func WarnErr(err error) {
-	Warn(err.Error())
-}
-
-func ErrorErr(err error) {
-	Error(err.Error())
+	buf.WriteRune(newline)
+	writer.Write([]byte(buf.String()))
 }
