@@ -78,21 +78,19 @@ func AddPrefix(key string, value string) {
 	}
 	sort.Strings(keys)
 
-	for _, k := range keys {
+	for i, k := range keys {
+		if i > 0 {
+			prefix.WriteRune(space)
+		}
+
 		prefix.WriteString(k)
 		prefix.WriteRune(equals)
 		prefix.WriteString(prefixMap[k])
-		prefix.WriteRune(space)
 	}
 }
 
 func writeLine(l Level, severity Severity, fields ...interface{}) {
 	defer buf.Reset()
-
-	if timestampEnabled {
-		buf.WriteString(time.Now().Format(time.StampMicro))
-		buf.WriteRune(space)
-	}
 
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -100,6 +98,12 @@ func writeLine(l Level, severity Severity, fields ...interface{}) {
 	buf.WriteRune(openBracket)
 	buf.WriteRune(rune(severity))
 	buf.WriteRune(closeBracket)
+
+	if timestampEnabled {
+		buf.WriteString(time.Now().Format(time.StampMicro))
+		buf.WriteRune(space)
+	}
+
 	buf.WriteString(prefix.String())
 
 	var key string
@@ -109,6 +113,7 @@ func writeLine(l Level, severity Severity, fields ...interface{}) {
 		if i%2 == 0 {
 			key, shouldInclude = field.(string)
 		} else if shouldInclude {
+			buf.WriteRune(space)
 			buf.WriteString(key)
 			buf.WriteRune(equals)
 			buf.WriteString(fmt.Sprint(field))
