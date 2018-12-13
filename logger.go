@@ -113,10 +113,13 @@ func writeLine(l Level, severity Severity, fields ...interface{}) {
 		if i%2 == 0 {
 			key, shouldInclude = field.(string)
 		} else if shouldInclude {
-			buf.WriteRune(space)
-			buf.WriteString(key)
-			buf.WriteRune(equals)
-			buf.WriteString(fmt.Sprint(field))
+			value := fmt.Sprint(field)
+			if value != "" {
+				buf.WriteRune(space)
+				buf.WriteString(key)
+				buf.WriteRune(equals)
+				buf.WriteString(value)
+			}
 		}
 	}
 
