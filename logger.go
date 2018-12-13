@@ -66,8 +66,13 @@ func SetTimestampEnabled(enabled bool) {
 }
 
 func AddPrefix(key string, value string) {
+	if key == "" || value == "" {
+		return
+	}
+
 	mutex.Lock()
 	defer mutex.Unlock()
+
 	prefixMap[key] = value
 
 	prefix.Reset()
