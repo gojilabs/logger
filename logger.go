@@ -95,8 +95,6 @@ func AddPrefix(key string, value string) {
 }
 
 func writeLine(l Level, severity Severity, fields ...interface{}) {
-	defer buf.Reset()
-
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -130,4 +128,5 @@ func writeLine(l Level, severity Severity, fields ...interface{}) {
 
 	buf.WriteRune(newline)
 	writer.Write([]byte(buf.String()))
+	buf.Reset()
 }
